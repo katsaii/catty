@@ -1,5 +1,6 @@
 mod common;
 mod cmd_add;
+mod cmd_rename;
 
 use std::env;
 
@@ -32,7 +33,35 @@ enum Commands {
     Sort,
     /// Renames all audio files in the working directory so they are in a
     /// consistent format.
-    Rename,
+    Rename {
+        /// (a)rtist name, (A)lbum name, track (n)umber, track (t)itle
+        #[arg(short, long, default_value = "aAnt")]
+        format : String,
+        /// Include the artist name in the format. [default: enabled]
+        #[arg(long)]
+        _artist : bool,
+        /// Exclude the artist name from the format.
+        #[arg(long = "no-artist", overrides_with = "_artist")]
+        no_artist : bool,
+        /// Include the album name in the format. [default: disabled]
+        #[arg(long, overrides_with = "_no_album")]
+        album : bool,
+        /// Exclude the album name from the format.
+        #[arg(long = "no-album")]
+        _no_album : bool,
+        /// Include the track number in the format. [default: disabled]
+        #[arg(long, overrides_with = "_no_number")]
+        number : bool,
+        /// Exclude the track number from the format.
+        #[arg(long = "no-number")]
+        _no_number : bool,
+        /// Include the track title in the format. [default: enabled]
+        #[arg(long)]
+        _title : bool,
+        /// Exclude the artist title from the format.
+        #[arg(long = "no-title", overrides_with = "_title")]
+        no_title : bool,
+    },
 }
 
 fn main() {
@@ -44,8 +73,9 @@ fn main() {
     let cli = Cli::parse();
     let result = match &cli.command {
         Commands::Add { uris } => cmd_add::run(uris),
-        Commands::Sort => unimplemented!(),
-        Commands::Rename => unimplemented!(),
+        Commands::Sort { .. } => unimplemented!(),
+        Commands::Rename { format, no_artist, album, number, no_title, .. }
+            => cmd_rename::run(&format, !*no_artist, *album, *number, !*no_title),
     };
     if let Err(msg) = result {
         log::error!("fatal error encountered:\n{}", msg);

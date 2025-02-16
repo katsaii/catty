@@ -1,3 +1,5 @@
+pub mod meta;
+
 use std::fs;
 use std::path;
 
@@ -16,6 +18,7 @@ pub fn find_config(key : &str) -> Option<String> {
     return Some(toml_value.to_owned());
 }
 
+#[allow(dead_code)]
 pub fn pause() {
     use std::io::Read;
     println!("waiting for user input...");
