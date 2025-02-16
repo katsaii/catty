@@ -17,8 +17,10 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Wrapper around `yt-dlp` which downloads an audio file with important
-    /// metadata, such as thumbnail and artist name.
+    /// Wrapper around `yt-dlp` that attempts to download an audio file in
+    /// the highest quality, with as much metadata as it can grab.
+    ///
+    /// Will not download video files.
     Add {
         #[arg(required = true)]
         uris : Vec<String>,

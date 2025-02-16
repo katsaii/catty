@@ -16,12 +16,6 @@ pub fn find_config(key : &str) -> Option<String> {
     return Some(toml_value.to_owned());
 }
 
-pub fn pause() {
-    use std::io::Read;
-    println!("waiting for user input...");
-    std::io::stdin().read(&mut [0]).unwrap();
-}
-
 pub fn find_ytdlp_path() -> Option<path::PathBuf> {
     if let Some(ytdlp_config_path) = find_config("yt-dlp") {
         match fs::exists(&ytdlp_config_path) {
