@@ -107,6 +107,7 @@ dependencies = [
  "clap",
  "colog",
  "log",
+ "regex",
  "toml",
  "which",
 ]

@@ -7,6 +7,8 @@ pub fn run(
     number : bool,
     title : bool,
 ) -> common::Result<()> {
-    println!("fmt {} a {} A {} n {} t {}", format, artist, album, number, title);
+    let meta_path = std::path::Path::new("05 - 100 gecs, Fall Out Boy, Craig Owens, Nicole Dollanganger - hand crushed by a mallet (Remix) [feat. Fall Out Boy, Craig Owens, Nicole Dollanganger].mp3");
+    let meta = common::meta::parse(meta_path);
+    println!("{:?}", meta);
     Ok(())
 }
