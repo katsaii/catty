@@ -25,6 +25,14 @@ enum Commands {
         #[arg(required = true)]
         uris : Vec<String>,
     },
+    /// Organise audio files in the working directory into subfolders based on
+    /// the artist name and album name.
+    ///  - Albums without a primary artist are moved to a folder called `.VariousArtists`.
+    ///  - Tracks without a known artist are moved to a folder called `.Unknown`.
+    Sort,
+    /// Renames all audio files in the working directory so they are in a
+    /// consistent format.
+    Rename,
 }
 
 fn main() {
@@ -36,6 +44,8 @@ fn main() {
     let cli = Cli::parse();
     let result = match &cli.command {
         Commands::Add { uris } => cmd_add::run(uris),
+        Commands::Sort => unimplemented!(),
+        Commands::Rename => unimplemented!(),
     };
     if let Err(msg) = result {
         log::error!("fatal error encountered:\n{}", msg);
