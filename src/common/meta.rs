@@ -114,24 +114,38 @@ fn parse_artist_info(in_artist : Option<String>, in_title : Option<String>) -> (
     // TODO: move this regex somewhere else so its not being compiled every time
     let splitter = regex::Regex::new(r", |; | and | [&+xX] |\x00").unwrap();
     let splitter_feat = regex::Regex::new(r"[\(\[\{]\s*[fF]e?a?t\.?\s").unwrap();
+    let splitter_feat_2 = regex::Regex::new(r"\s[fF]e?a?t\.?\s").unwrap();
     // parse features
     if let Some(in_title) = &in_title {
         let mut split = splitter_feat.splitn(in_title, 2);
-        let new_title = split.next();
-        let in_feature = split.next();
-        if let (Some(new_title), Some(in_feature)) = (new_title, in_feature) {
+        let new_title = split.next().unwrap();
+        if let Some(in_feature) = split.next() {
             title = Some(new_title.trim().to_string());
             let in_feature = in_feature.trim().trim_end_matches([')', ']', '}']);
             for feature in splitter.split(in_feature) {
-                features.push(feature.trim().to_string());
+                let feature = feature.trim().to_string();
+                if !feature.is_empty() {
+                    features.push(feature);
+                }
             }
         }
     }
     // parse artists
     if let Some(in_artist) = &in_artist {
+        let mut split = splitter_feat_2.splitn(in_artist, 2);
+        let in_artist = split.next().unwrap();
+        if let Some(in_feature) = split.next() {
+            // OOPS! more featured artists, i lied
+            for feature in splitter.split(in_feature) {
+                let feature = feature.trim().to_string();
+                if !feature.is_empty() {
+                    features.push(feature);
+                }
+            }
+        }
         for artist in splitter.split(in_artist) {
             let artist = artist.trim().to_string();
-            if !features.contains(&artist) {
+            if !artist.is_empty() && !features.contains(&artist) {
                 artists.push(artist);
             }
         }

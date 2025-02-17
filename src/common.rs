@@ -32,6 +32,9 @@ pub fn glob_foreach(pattern : &str, f : impl Fn(&path::Path) -> Result<()>) -> R
     for file in glob(pattern)? {
         has_matches = true;
         let file = file?;
+        if file.is_dir() {
+            continue; // skip directories
+        }
         if let Some(ext) = file.extension().and_then(|x| x.to_str()) {
             if ext_is_audio_file(ext) {
                 f(file.as_path())?;
