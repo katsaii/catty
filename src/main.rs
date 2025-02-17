@@ -1,6 +1,7 @@
 mod common;
 mod cmd_add;
 mod cmd_rename;
+mod cmd_sort;
 
 use std::env;
 
@@ -26,11 +27,6 @@ enum Commands {
         #[arg(required = true)]
         uris : Vec<String>,
     },
-    /// Organise audio files in the working directory into subfolders based on
-    /// the artist name and album name.
-    ///  - Albums without a primary artist are moved to a folder called `.VariousArtists`.
-    ///  - Tracks without a known artist are moved to a folder called `.Unknown`.
-    Sort,
     /// Renames all audio files in the working directory so they are in a
     /// consistent format.
     Rename {
@@ -64,6 +60,14 @@ enum Commands {
         #[arg(long = "no-title", overrides_with = "_title")]
         no_title : bool,
     },
+    /// Organise audio files in the working directory into subfolders based on
+    /// the artist name and album name.
+    ///  - Albums without a primary artist are moved to a folder called `.VariousArtists`.
+    ///  - Tracks without a known artist are moved to a folder called `.Unknown`.
+    Sort {
+        #[arg(required = true)]
+        patterns : Vec<String>,
+    },
 }
 
 fn main() {
@@ -75,9 +79,9 @@ fn main() {
     let cli = Cli::parse();
     let result = match &cli.command {
         Commands::Add { uris } => cmd_add::run(uris),
-        Commands::Sort { .. } => unimplemented!(),
         Commands::Rename { patterns, format, no_artist, album, number, no_title, .. }
             => cmd_rename::run(&patterns, &format, !*no_artist, *album, *number, !*no_title),
+        Commands::Sort { patterns } => cmd_sort::run(&patterns),
     };
     if let Err(msg) = result {
         log::error!("fatal error encountered:\n{}", msg);

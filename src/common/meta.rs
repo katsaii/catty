@@ -112,8 +112,8 @@ fn parse_artist_info(in_artist : Option<String>, in_title : Option<String>) -> (
     let mut features = vec![];
     let mut title = None;
     // TODO: move this regex somewhere else so its not being compiled every time
-    let splitter = regex::Regex::new(r", |; | [&+xX] |\x00").unwrap();
-    let splitter_feat = regex::Regex::new(r"[\(\[\{]\s*[fF]eat\.?\s").unwrap();
+    let splitter = regex::Regex::new(r", |; | and | [&+xX] |\x00").unwrap();
+    let splitter_feat = regex::Regex::new(r"[\(\[\{]\s*[fF]e?a?t\.?\s").unwrap();
     // parse features
     if let Some(in_title) = &in_title {
         let mut split = splitter_feat.splitn(in_title, 2);
