@@ -11,7 +11,7 @@ pub struct TrackMeta {
     pub features : Vec<String>,
     pub album : Option<String>,
     pub number : Option<usize>,
-    pub title : Option<String>,
+    pub title : String,
 }
 
 pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
@@ -47,8 +47,11 @@ pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
         }
     }
     // parse current metadata into contributing artists and featured artists
-    let (artists, features, title) = parse_artist_info(artist, title);
-    Ok(TrackMeta { artists, features, album, number, title })
+    let (mut artists, features, title) = parse_artist_info(artist, title);
+    if artists.is_empty() {
+        artists.push("Unknown".to_owned());
+    }
+    Ok(TrackMeta { artists, features, album, number, title : title.unwrap_or("Undefined".to_owned()) })
 }
 
 fn trim_str(x : &str) -> Option<String> {

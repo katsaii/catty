@@ -34,6 +34,8 @@ enum Commands {
     /// Renames all audio files in the working directory so they are in a
     /// consistent format.
     Rename {
+        #[arg(required = true)]
+        patterns : Vec<String>,
         /// (a)rtist name, (A)lbum name, track (n)umber, track (t)itle
         #[arg(short, long, default_value = "aAnt")]
         format : String,
@@ -74,8 +76,8 @@ fn main() {
     let result = match &cli.command {
         Commands::Add { uris } => cmd_add::run(uris),
         Commands::Sort { .. } => unimplemented!(),
-        Commands::Rename { format, no_artist, album, number, no_title, .. }
-            => cmd_rename::run(&format, !*no_artist, *album, *number, !*no_title),
+        Commands::Rename { patterns, format, no_artist, album, number, no_title, .. }
+            => cmd_rename::run(&patterns, &format, !*no_artist, *album, *number, !*no_title),
     };
     if let Err(msg) = result {
         log::error!("fatal error encountered:\n{}", msg);
