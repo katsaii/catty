@@ -5,6 +5,7 @@ use std::io::{stdout, Write};
 use std::path;
 
 use which::which;
+use glob::glob;
 use toml;
 use log;
 
@@ -17,6 +18,32 @@ pub fn find_config(key : &str) -> Option<String> {
     let value = file.parse::<toml::Table>().ok()?;
     let toml_value = value.get(key)?.as_str()?;
     return Some(toml_value.to_owned());
+}
+
+pub fn glob_foreach_many(patterns : &[String], f : impl Fn(&path::Path) -> Result<()>) -> Result<()> {
+    for pattern in patterns {
+        glob_foreach(pattern, &f)?;
+    }
+    Ok(())
+}
+
+pub fn glob_foreach(pattern : &str, f : impl Fn(&path::Path) -> Result<()>) -> Result<()> {
+    let mut has_matches = false;
+    for file in glob(pattern)? {
+        has_matches = true;
+        let file = file?;
+        if let Some(ext) = file.extension().and_then(|x| x.to_str()) {
+            if ext_is_audio_file(ext) {
+                f(file.as_path())?;
+                continue;
+            }
+        }
+        log::info!("skipping non-audio file: {}", file.display());
+    }
+    if !has_matches {
+        log::warn!("pattern matched no files: {:?}", pattern);
+    }
+    Ok(())
 }
 
 pub fn ask_confirm() -> bool {

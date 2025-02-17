@@ -3,7 +3,6 @@ use std::fs;
 use std::path;
 use crate::common;
 
-use glob::glob;
 use sanitise_file_name;
 use log;
 
@@ -15,24 +14,9 @@ pub fn run(
     number : bool,
     title : bool,
 ) -> common::Result<()> {
-    for pattern in patterns {
-        let mut has_matches = false;
-        for file in glob(pattern)? {
-            has_matches = true;
-            let file = file?;
-            if let Some(ext) = file.extension().and_then(|x| x.to_str()) {
-                if common::ext_is_audio_file(ext) {
-                    rename_file(file.as_path(), format, artist, album, number, title)?;
-                    continue;
-                }
-            }
-            log::info!("skipping non-audio file: {}", file.display());
-        }
-        if !has_matches {
-            log::warn!("pattern matched no files: {:?}", pattern);
-        }
-    }
-    Ok(())
+    common::glob_foreach_many(patterns, |file| {
+        rename_file(file, format, artist, album, number, title)
+    })
 }
 
 fn rename_file(

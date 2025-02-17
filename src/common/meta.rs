@@ -30,7 +30,7 @@ pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
         Err(audiotags::Error::IOError(err)) => return Err(Box::new(err)),
         Err(err) => {
             log::warn!(
-                "failed to get metadata for file '{}', skipping:\n{}",
+                "failed to get metadata for file '{}'\nreason = {}",
                 file_path.display(), err
             );
         }
