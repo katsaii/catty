@@ -28,6 +28,7 @@ fn rename_file(
     title : bool,
 ) -> common::Result<()> {
     let file_meta = common::meta::parse(file)?;
+    log::debug!("{:?}", file_meta);
     // build new stem
     let mut new_stem = String::new();
     let mut first = true;
@@ -46,7 +47,7 @@ fn rename_file(
                 }
             },
             'n' if number => {
-                if let Some(number) = &file_meta.number {
+                if let Some(number) = &file_meta.track_number {
                     if !first { new_stem.push_str(" - "); }
                     new_stem.push_str(&number.to_string());
                     new_stem.push_str(" ");
@@ -54,7 +55,7 @@ fn rename_file(
                 }
             },
             't' if title => {
-                let title = &file_meta.title;
+                let title = file_meta.title.as_ref().map_or(common::meta::DEFAULT_TITLE, |x| x);
                 if !first { new_stem.push_str(" - "); }
                 new_stem.push_str(title);
                 if artist && !file_meta.features.is_empty() {
@@ -72,12 +73,14 @@ fn rename_file(
         new_stem.push_str(ext);
     }
     let new_stem = sanitise_file_name::sanitise(&new_stem);
-    let new_file = file.with_file_name(new_stem);
-    if file == new_file {
-        log::info!("file '{}' is unchanged, skipping", file.display());
+    // fix for windows files being case insensitive
+    let unchanged = new_stem.to_lowercase() == file.file_name().and_then(|x| x.to_str()).unwrap().to_lowercase();
+    if unchanged {
+        log::info!("file is unchanged, skipping: {}", file.display());
     } else {
         // confirm rename
-        log::info!("renaming from    {}\n           to => {}", file.display(), new_file.display());
+        let new_file = file.with_file_name(new_stem);
+        log::info!("renaming from    '{}'\n           to => '{}'", file.display(), new_file.display());
         if common::ask_confirm() {
             fs::rename(file, new_file)?;
         }

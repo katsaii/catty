@@ -22,7 +22,7 @@ fn sort_file(file : &path::Path) -> common::Result<()> {
         new_file.push(album);
     }
     // confirm rename
-    log::info!("moving from    {}\n         to => {}{}{}",
+    log::info!("moving from    '{}'\n         to => '{}{}{}'",
             file.display(), new_file.display(), path::MAIN_SEPARATOR, file_name);
     if common::ask_confirm() {
         fs::create_dir_all(new_file.as_path())?;

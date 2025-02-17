@@ -21,7 +21,11 @@ pub fn find_config(key : &str) -> Option<String> {
 }
 
 pub fn glob_foreach_many(patterns : &[String], f : impl Fn(&path::Path) -> Result<()>) -> Result<()> {
+    let n_count = patterns.len();
+    let mut n = 0;
     for pattern in patterns {
+        n += 1;
+        log::info!("processing batch [{} / {}]", n, n_count);
         glob_foreach(pattern, &f)?;
     }
     Ok(())
