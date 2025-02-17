@@ -9,6 +9,7 @@ use regex;
 #[derive(Debug)]
 pub struct TrackMeta {
     re_split : regex::Regex,
+    re_split_fallback : regex::Regex,
     re_split_artist : regex::Regex,
     re_split_feat : regex::Regex,
     re_split_feat_end : regex::Regex,
@@ -36,7 +37,10 @@ impl TrackMeta {
         Self {
             // i considered having '—' be separators, but i think they're used
             // too commonly in japanese text to make it reliable
-            re_split : regex::Regex::new(r"\s-\s|\s–\s|\s::\s|\s~\s").unwrap(),
+            //
+            // cautiously adding them as a fallback should be good enough
+            re_split : regex::Regex::new(r"\s-\s|\s–\s").unwrap(),
+            re_split_fallback : regex::Regex::new(r"\s-|-\s|\s–|–\s|\s—\s|\s::\s|\s~\s").unwrap(),
             re_split_artist : regex::Regex::new(r",\s|;\s|\sand\s|\svs\.?\s|\s[&+xX]\s|\x00").unwrap(),
             re_split_feat : regex::Regex::new(r"\s[fF]e?a?t\.?\s").unwrap(),
             re_split_feat_end : regex::Regex::new(r"[\(\[\{]\s*[fF]e?a?t\.?\s").unwrap(),
@@ -136,10 +140,21 @@ pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
     // parse from file stem
     let dirty_stem = file_path.file_stem().and_then(|x| x.to_str());
     let mut stem_artist = None;
-    let mut stem_album = None;
+    let mut stem_album = None as Option<String>;
     let mut stem_title = None;
     if let Some(file_stem) = dirty_stem {
-        let stem_parts = meta.re_split.splitn(file_stem, 3).map(|x| x.trim()).collect::<Vec<_>>();
+        let mut stem_parts = meta.re_split
+                //.splitn(file_stem, 3) // see below: albums disabled
+                .splitn(file_stem, 2)
+                .map(|x| x.trim())
+                .collect::<Vec<_>>();
+        if stem_parts.len() == 1 {
+            // probably has no author, but try the fallback just incase!
+            stem_parts = meta.re_split_fallback
+                    .splitn(stem_parts[0], 2)
+                    .map(|x| x.trim())
+                    .collect::<Vec<_>>();
+        }
         match stem_parts.as_slice() {
             // could only really be the track title
             [raw_title] => {
@@ -149,11 +164,19 @@ pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
                 stem_artist = Some(raw_artist.to_string());
                 stem_title = Some(raw_title.to_string());
             },
+            // TODO: fix album parsing, right now it fails on songs like:
+            //
+            //   Speedcore Front Ost Berlin - Speedcore Symphonia Part II - Kindesschlaf.mp3
+            //
+            // where "Speedcore Symphonia Part II" is interpreted as the album
+            // name, when this isn't actually true
+            /*
             [raw_artist, raw_album, raw_title] => {
                 stem_artist = Some(raw_artist.to_string());
                 stem_album = Some(raw_album.to_string());
                 stem_title = Some(raw_title.to_string());
             },
+            */
             _ => unreachable!(),
         }
     } else {
