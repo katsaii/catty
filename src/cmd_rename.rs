@@ -3,7 +3,7 @@ use std::fs;
 use std::path;
 use crate::common;
 
-use sanitise_file_name;
+use sanitise_file_name as sfn;
 use log;
 
 pub fn run(
@@ -72,7 +72,9 @@ fn rename_file(
         new_stem.push('.');
         new_stem.push_str(ext);
     }
-    let new_stem = sanitise_file_name::sanitise(&new_stem);
+    let new_stem = sfn::sanitise_with_options(&new_stem, 
+        &sfn::Options { trim_more_punctuation : false, ..sfn::Options::DEFAULT }
+    );
     // fix for windows files being case insensitive
     let unchanged = new_stem.to_lowercase() == file.file_name().and_then(|x| x.to_str()).unwrap().to_lowercase();
     if unchanged {

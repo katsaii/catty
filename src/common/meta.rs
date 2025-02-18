@@ -41,7 +41,17 @@ impl TrackMeta {
             // cautiously adding them as a fallback should be good enough
             re_split : regex::Regex::new(r"\s-\s|\s–\s").unwrap(),
             re_split_fallback : regex::Regex::new(r"\s-|-\s|\s–|–\s|\s—\s|\s::\s|\s~\s").unwrap(),
-            re_split_artist : regex::Regex::new(r",\s|;\s|\sand\s|\svs\.?\s|\s[&+xX]\s|\x00").unwrap(),
+            // artist t+pazolite does this weird thing where instead of
+            //
+            //  artist1 & artist2 - songName
+            //
+            // it's one of
+            //
+            //  artist1 vs artist2 - songName
+            //  artist1 - songName (vs artist2)
+            //
+            // not sure what to do about that case... except ignore it! yipee!
+            re_split_artist : regex::Regex::new(r",\s|;\s|\sand\s|\s[&+xX]\s|\x00").unwrap(),
             re_split_feat : regex::Regex::new(r"\s[fF]e?a?t\.?\s").unwrap(),
             re_split_feat_end : regex::Regex::new(r"[\(\[\{]\s*[fF]e?a?t\.?\s").unwrap(),
             cache : HashSet::new(),
