@@ -1,4 +1,3 @@
-use std::fmt::Write;
 use std::fs;
 use std::path;
 use crate::common;
@@ -49,8 +48,7 @@ fn rename_file(
             'n' if number => {
                 if let Some(number) = &file_meta.track_number {
                     if !first { new_stem.push_str(" - "); }
-                    new_stem.push_str(&number.to_string());
-                    new_stem.push_str(" ");
+                    new_stem.push_str(&number.1);
                     first = true;
                 }
             },

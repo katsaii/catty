@@ -18,7 +18,7 @@ pub struct TrackMeta {
     pub features : Vec<String>,
     pub album : Option<String>,
     pub album_author : Option<String>,
-    pub track_number : Option<usize>,
+    pub track_number : Option<(usize, String)>,
     pub title : Option<String>,
 }
 
@@ -35,7 +35,7 @@ macro_rules! impl_metadata {
 impl TrackMeta {
     fn new() -> Self {
         Self {
-            // i considered having '—' be separators, but i think they're used
+            // i considered having '—' be a separator, but i think they're used
             // too commonly in japanese text to make it reliable
             //
             // cautiously adding them as a fallback should be good enough
@@ -52,7 +52,7 @@ impl TrackMeta {
             //
             // not sure what to do about that case... except ignore it! yipee!
             re_split_artist : regex::Regex::new(r",\s|;\s|\sand\s|\s[&+xX]\s|\x00").unwrap(),
-            re_split_feat : regex::Regex::new(r"\s[fF]e?a?t\.?\s").unwrap(),
+            re_split_feat : regex::Regex::new(r",?\s[fF]e?a?t\.?\s").unwrap(),
             re_split_feat_end : regex::Regex::new(r"[\(\[\{]\s*[fF]e?a?t\.?\s").unwrap(),
             cache : HashSet::new(),
             artists : Vec::new(),
@@ -79,7 +79,11 @@ impl TrackMeta {
     }
 
     fn from_artist(&mut self, artists : &str) {
-        let mut artists_parts = self.re_split_feat.splitn(artists.trim(), 2);
+        let artists = artists.trim();
+        if artists.is_empty() {
+            return;
+        }
+        let mut artists_parts = self.re_split_feat.splitn(artists, 2);
         let new_artists = artists_parts.next().unwrap().trim();
         if let Some(features) = artists_parts.next() {
             // oops! more featured artists!
@@ -103,12 +107,34 @@ impl TrackMeta {
         }
     }
 
-    fn from_album(&mut self, album : &str) { impl_metadata!(self.album, album.trim().to_string()) }
-    fn from_album_author(&mut self, album_author : &str) { impl_metadata!(self.album_author, album_author.trim().to_string()) }
-    fn from_track_number(&mut self, track_number : usize) { impl_metadata!(self.track_number, track_number) }
+    fn from_album(&mut self, album : &str) {
+        let album = album.trim();
+        if album.is_empty() {
+            return;
+        }
+        impl_metadata!(self.album, album.to_string())
+    }
+
+    fn from_album_author(&mut self, album_author : &str) {
+        let album_author = album_author.trim();
+        if album_author.is_empty() {
+            return;
+        }
+        impl_metadata!(self.album_author, album_author.to_string())
+    }
+
+    fn from_track_number(&mut self, track_number : usize) {
+        // the space at the end of {:0>2} is necessary!
+        impl_metadata!(self.track_number,
+                (track_number, format!("{:0>2} ", track_number)))
+    }
 
     fn from_title(&mut self, title : &str) {
-        let mut title_parts = self.re_split_feat_end.splitn(title.trim(), 2);
+        let title = title.trim();
+        if title.is_empty() {
+            return;
+        }
+        let mut title_parts = self.re_split_feat_end.splitn(title, 2);
         let new_title = title_parts.next().unwrap().trim();
         if let Some(features) = title_parts.next() {
             let features = features.trim().trim_end_matches([')', ']', '}']);
@@ -128,16 +154,16 @@ pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
     let dirty_tag = audiotags::Tag::new().read_from_path(file_path);
     let mut tag_artist = None;
     let mut tag_album = None;
-    let mut tag_album_author = None;
-    let mut tag_number = None;
     let mut tag_title = None;
     match dirty_tag {
         Ok(tag) => {
             tag_artist = tag.artist().map(String::from);
             tag_album = tag.album_title().map(String::from);
-            tag_album_author = tag.album_artist().map(String::from);
-            tag_number = tag.track_number().map(|x| x as usize);
             tag_title = tag.title().map(String::from);
+            // these tags can be added immediately, because the file stem is
+            // unlikely to contain them
+            tag.album_artist().map(|x| meta.from_album_author(x));
+            tag.track_number().map(|x| meta.from_track_number(x as usize));
         }
         Err(audiotags::Error::IOError(err)) => return Err(Box::new(err)),
         Err(err) => {
@@ -152,7 +178,13 @@ pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
     let mut stem_artist = None;
     let mut stem_album = None as Option<String>;
     let mut stem_title = None;
-    if let Some(file_stem) = dirty_stem {
+    if let Some(mut file_stem) = dirty_stem {
+        if let Some((_, number_prefix)) = &meta.track_number {
+            if file_stem.starts_with(number_prefix) {
+                file_stem = file_stem[number_prefix.len()..]
+                        .trim().trim_start_matches('-');
+            }
+        }
         let mut stem_parts = meta.re_split
                 //.splitn(file_stem, 3) // see below: albums disabled
                 .splitn(file_stem, 2)
@@ -193,13 +225,11 @@ pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
         log::warn!("failed to get stem for file '{}', skipping", file_path.display());
     }
     // now apply metadata
-    stem_album.as_ref().map(|x| meta.from_album(x));
     tag_album.as_ref().map(|x| meta.from_album(x));
-    tag_album_author.as_ref().map(|x| meta.from_album_author(x));
-    tag_number.map(|x| meta.from_track_number(x));
-    stem_title.as_ref().map(|x| meta.from_title(x));
+    stem_album.as_ref().map(|x| meta.from_album(x));
     tag_title.as_ref().map(|x| meta.from_title(x));
-    stem_artist.as_ref().map(|x| meta.from_artist(x));
+    stem_title.as_ref().map(|x| meta.from_title(x));
+    stem_artist.as_ref().map(|x| meta.from_artist(x)); // order is important here!
     tag_artist.as_ref().map(|x| meta.from_artist(x));
     Ok(meta)
 }
