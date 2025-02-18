@@ -24,12 +24,17 @@ enum Commands {
     ///
     /// Will not download video files.
     Add {
+        /// URIs that point to the files to download.
         #[arg(required = true)]
         uris : Vec<String>,
+        /// Indicates that the files are part of a playlist or album.
+        #[arg(short, long, group = "media-type")]
+        playlist : bool,
     },
     /// Renames all audio files in the working directory so they are in a
     /// consistent format.
     Rename {
+        /// Paths of the files to format. Supports GLOB syntax.
         #[arg(required = true)]
         patterns : Vec<String>,
         /// (a)rtist name, (A)lbum name, track (n)umber, track (t)itle
@@ -78,7 +83,7 @@ fn main() {
     }
     let cli = Cli::parse();
     let result = match &cli.command {
-        Commands::Add { uris } => cmd_add::run(uris),
+        Commands::Add { uris, playlist } => cmd_add::run(uris, *playlist),
         Commands::Rename { patterns, format, no_artist, album, number, no_title, .. }
             => cmd_rename::run(&patterns, &format, !*no_artist, *album, *number, !*no_title),
         Commands::Sort { patterns } => cmd_sort::run(&patterns),
