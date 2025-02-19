@@ -185,18 +185,7 @@ pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
                         .trim().trim_start_matches('-');
             }
         }
-        let mut stem_parts = meta.re_split
-                //.splitn(file_stem, 3) // see below: albums disabled
-                .splitn(file_stem, 2)
-                .map(|x| x.trim())
-                .collect::<Vec<_>>();
-        if stem_parts.len() == 1 {
-            // probably has no author, but try the fallback just incase!
-            stem_parts = meta.re_split_fallback
-                    .splitn(stem_parts[0], 2)
-                    .map(|x| x.trim())
-                    .collect::<Vec<_>>();
-        }
+        let stem_parts = stem_split(&meta, file_stem);
         match stem_parts.as_slice() {
             // could only really be the track title
             [raw_title] => {
@@ -224,6 +213,22 @@ pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
     } else {
         log::warn!("failed to get stem for file '{}', skipping", file_path.display());
     }
+    // patch the tag title, because Bandcamp actually gets this info wrong
+    if let Some(title) = &tag_title {
+        let title_parts = stem_split(&meta, title);
+        if let [artist, title] = title_parts.as_slice() {
+            let mut trim_title = false;
+            if let Some(expect_artist) = &tag_artist {
+                trim_title = trim_title || expect_artist == artist;
+            }
+            if let Some(expect_artist) = &stem_artist {
+                trim_title = trim_title || expect_artist == artist;
+            }
+            if trim_title {
+                tag_title = Some(title.to_string());
+            }
+        }
+    }
     // now apply metadata
     tag_album.as_ref().map(|x| meta.from_album(x));
     stem_album.as_ref().map(|x| meta.from_album(x));
@@ -232,4 +237,20 @@ pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
     stem_artist.as_ref().map(|x| meta.from_artist(x)); // order is important here!
     tag_artist.as_ref().map(|x| meta.from_artist(x));
     Ok(meta)
+}
+
+fn stem_split<'a>(meta : &TrackMeta, stem : &'a str) -> Vec<&'a str> {
+    let mut stem_parts = meta.re_split
+            //.splitn(file_stem, 3) // see above: albums disabled
+            .splitn(stem, 2)
+            .map(|x| x.trim())
+            .collect::<Vec<_>>();
+    if stem_parts.len() == 1 {
+        // probably has no author, but try the fallback just incase!
+        stem_parts = meta.re_split_fallback
+                .splitn(stem_parts[0], 2)
+                .map(|x| x.trim())
+                .collect::<Vec<_>>();
+    }
+    stem_parts
 }
