@@ -6,14 +6,14 @@ use sanitise_file_name as sfn;
 use log;
 
 pub fn run(
-    patterns : &[String],
+    file_paths : &[String],
     format : &str,
     artist : bool,
     album : bool,
     number : bool,
     title : bool,
 ) -> common::Result<()> {
-    common::glob_foreach_many(patterns, |file| {
+    common::glob_foreach_many(file_paths, |file| {
         rename_file(file, format, artist, album, number, title)
     })
 }

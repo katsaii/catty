@@ -2,8 +2,12 @@ use std::path;
 use std::fs;
 use crate::common;
 
-pub fn run(patterns : &[String]) -> common::Result<()> {
-    common::glob_foreach_many(patterns, |file| {
+pub fn run(
+    file_paths : &[String],
+    clean_dirs : bool,
+    clean_files : bool,
+) -> common::Result<()> {
+    common::glob_foreach_many(file_paths, |file| {
         sort_file(file)
     })
 }

@@ -34,31 +34,30 @@ enum Commands {
     /// Renames all audio files in the working directory so they are in a
     /// consistent format.
     Rename {
-        /// Paths of the files to format. Supports GLOB syntax.
-        #[arg(required = true)]
-        patterns : Vec<String>,
+        /// The list of files to format (supports GLOB file path syntax).
+        file_paths : Vec<String>,
         /// (a)rtist name, (A)lbum name, track (n)umber, track (t)itle
         #[arg(short, long, default_value = "aAnt")]
         format : String,
-        /// Include the artist name in the format. [default: enabled]
+        /// Include the artist name in the format (enabled by default).
         #[arg(long)]
         _artist : bool,
         /// Exclude the artist name from the format.
         #[arg(long = "no-artist", overrides_with = "_artist")]
         no_artist : bool,
-        /// Include the album name in the format. [default: disabled]
+        /// Include the album name in the format.
         #[arg(long, overrides_with = "_no_album")]
         album : bool,
-        /// Exclude the album name from the format.
+        /// Exclude the album name from the format (enabled by default).
         #[arg(long = "no-album")]
         _no_album : bool,
-        /// Include the track number in the format. [default: disabled]
+        /// Include the track number in the format.
         #[arg(long, overrides_with = "_no_number")]
         number : bool,
-        /// Exclude the track number from the format.
+        /// Exclude the track number from the format (enabled by default).
         #[arg(long = "no-number")]
         _no_number : bool,
-        /// Include the track title in the format. [default: enabled]
+        /// Include the track title in the format (enabled by default).
         #[arg(long)]
         _title : bool,
         /// Exclude the artist title from the format.
@@ -70,8 +69,16 @@ enum Commands {
     ///  - Albums without a primary artist are moved to a folder called `.VariousArtists`.
     ///  - Tracks without a known artist are moved to a folder called `.Unknown`.
     Sort {
-        #[arg(required = true)]
-        patterns : Vec<String>,
+        /// The list of files to sort into subfolders (supports GLOB file path
+        /// syntax).
+        file_paths : Vec<String>,
+        /// Deletes any empty directories inside of the music library.
+        #[arg(short = 'd', long)]
+        clean_dirs : bool,
+        /// Collapses any artist directories whose track count does not exceed
+        /// a minimum number.
+        #[arg(short = 'f', long)]
+        clean_files : bool,
     },
 }
 
@@ -83,10 +90,12 @@ fn main() {
     }
     let cli = Cli::parse();
     let result = match &cli.command {
-        Commands::Add { uris, playlist } => cmd_add::run(uris, *playlist),
-        Commands::Rename { patterns, format, no_artist, album, number, no_title, .. }
-            => cmd_rename::run(&patterns, &format, !*no_artist, *album, *number, !*no_title),
-        Commands::Sort { patterns } => cmd_sort::run(&patterns),
+        Commands::Add { uris, playlist }
+            => cmd_add::run(uris, *playlist),
+        Commands::Rename { file_paths, format, no_artist, album, number, no_title, .. }
+            => cmd_rename::run(&file_paths, &format, !*no_artist, *album, *number, !*no_title),
+        Commands::Sort { file_paths, clean_dirs, clean_files }
+            => cmd_sort::run(&file_paths, *clean_dirs, *clean_files),
     };
     if let Err(msg) = result {
         log::error!("fatal error encountered:\n{}", msg);

@@ -39,7 +39,7 @@ fn fetch_uri(ytdlp_path : &path::Path, uri : &str, is_playlist : bool) -> common
         // also try and find the best audio format
         "-f", "ba[ext=flac]/ba[ext=wav]/ba[ext=mp3]/ba",
     ]);
-    // make sure the filepath is descriptive
+    // make sure the file path is descriptive
     let mut file_name = (if is_playlist { "%(playlist|Playlist)s/" } else { "" }).to_string();
     file_name.push_str("%(artist,creator,uploader,uploader_id|Unknown)s - %(title,track,fulltitle,webpage_url_basename|Unnamed)s.%(ext)s");
     proc.args(["-o", file_name.as_str()]);
