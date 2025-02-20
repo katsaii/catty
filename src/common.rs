@@ -21,6 +21,10 @@ pub fn find_config(key : &str) -> Option<String> {
 }
 
 pub fn glob_foreach_many(patterns : &[String], f : impl Fn(&path::Path) -> Result<()>) -> Result<()> {
+    if patterns.is_empty() {
+        log::info!("no paths supplied, defaulting to all files in the working directory");
+        return glob_foreach("*", f);
+    }
     let n_count = patterns.len();
     let mut n = 0;
     for pattern in patterns {

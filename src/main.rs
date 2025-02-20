@@ -75,8 +75,7 @@ enum Commands {
         /// Deletes any empty directories inside of the music library.
         #[arg(short = 'd', long)]
         clean_dirs : bool,
-        /// Collapses any artist directories whose track count does not exceed
-        /// a minimum number.
+        /// Collapses any artist directories that only contain a single track.
         #[arg(short = 'f', long)]
         clean_files : bool,
     },

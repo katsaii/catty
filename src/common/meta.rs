@@ -20,9 +20,47 @@ pub struct TrackMeta {
     pub album_author : Option<String>,
     pub track_number : Option<(usize, String)>,
     pub title : Option<String>,
+    pub file_name : Option<String>,
 }
 
-pub const DEFAULT_TITLE : &'static str = "Untitled";
+impl TrackMeta {
+    pub fn get_author<'a>(&'a self) -> Option<&'a str> {
+        if let Some(album_author) = &self.album_author {
+            return Some(album_author);
+        }
+        if self.artists.len() > 1 {
+            return Some(&self.artists[0]);
+        }
+        if !self.artists.is_empty() {
+            let author = &self.artists[0];
+            if !author.eq_ignore_ascii_case(DEFAULT_AUTHOR)
+            && !author.eq_ignore_ascii_case(DEFAULT_AUTHOR_ID) {
+                return Some(author);
+            }
+        }
+        None
+    }
+
+}
+
+pub const DEFAULT_CATEGORY : &'static str = ".other";
+pub const DEFAULT_AUTHOR : &'static str = "unknown";
+pub const DEFAULT_AUTHOR_ID : &'static str = "id"; // "in development"
+pub const DEFAULT_TITLE : &'static str = "untitled";
+
+pub fn get_category_name(author : &str) -> &'static str {
+    if author.is_empty() {
+        return DEFAULT_CATEGORY;
+    }
+    match author.chars().next().unwrap().to_ascii_uppercase() {
+        'A'..='F' => "A-F",
+        'G'..='K' => "G-K",
+        'L'..='P' => "L-P",
+        'Q'..='U' => "Q-U",
+        'V'..='Z' => "V-Z",
+        _ => DEFAULT_CATEGORY
+    }
+}
 
 macro_rules! impl_metadata {
     ($from:expr, $into:expr) => {
@@ -61,6 +99,7 @@ impl TrackMeta {
             album_author : None,
             track_number : None,
             title : None,
+            file_name : None,
         }
     }
 
@@ -93,7 +132,7 @@ impl TrackMeta {
             }
         }
         for artist in self.re_split_artist.split(new_artists) {
-            // TODO: remove this for fix it for titles like: cool Guy - cool Guy theme
+            // TODO: remove this or fix it for titles like: cool Guy - cool Guy theme
             //if let Some(title) = &self.title {
             //    if title.contains(artist) {
             //        // strips visual noise by handling cases like:
@@ -129,6 +168,10 @@ impl TrackMeta {
                 (track_number, format!("{:0>2} ", track_number)))
     }
 
+    fn from_file_name(&mut self, file_name : &str) {
+        impl_metadata!(self.file_name, file_name.to_string())
+    }
+
     fn from_title(&mut self, title : &str) {
         let title = title.trim();
         if title.is_empty() {
@@ -150,6 +193,9 @@ impl TrackMeta {
 
 pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
     let mut meta = TrackMeta::new();
+    if let Some(file_name) = file_path.file_name().and_then(|x| x.to_str()) {
+        meta.from_file_name(file_name);
+    }
     // parse audio tags
     let dirty_tag = audiotags::Tag::new().read_from_path(file_path);
     let mut tag_artist = None;
@@ -176,7 +222,7 @@ pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
     // parse from file stem
     let dirty_stem = file_path.file_stem().and_then(|x| x.to_str());
     let mut stem_artist = None;
-    let mut stem_album = None as Option<String>;
+    let mut stem_album = None;
     let mut stem_title = None;
     if let Some(mut file_stem) = dirty_stem {
         if let Some((_, number_prefix)) = &meta.track_number {
@@ -185,38 +231,49 @@ pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
                         .trim().trim_start_matches('-');
             }
         }
-        let stem_parts = stem_split(&meta, file_stem);
-        match stem_parts.as_slice() {
-            // could only really be the track title
-            [raw_title] => {
-                stem_title = Some(raw_title.to_string());
-            },
-            [raw_artist, raw_title] => {
-                stem_artist = Some(raw_artist.to_string());
-                stem_title = Some(raw_title.to_string());
-            },
-            // TODO: fix album parsing, right now it fails on songs like:
-            //
-            //   Speedcore Front Ost Berlin - Speedcore Symphonia Part II - Kindesschlaf.mp3
-            //
-            // where "Speedcore Symphonia Part II" is interpreted as the album
-            // name, when this isn't actually true
-            /*
-            [raw_artist, raw_album, raw_title] => {
-                stem_artist = Some(raw_artist.to_string());
-                stem_album = Some(raw_album.to_string());
-                stem_title = Some(raw_title.to_string());
-            },
-            */
-            _ => unreachable!(),
+        let (artist, title) = stem_split(&meta, file_stem);
+        if let Some(artist) = artist {
+            stem_artist = Some(artist.to_string());
+        }
+        // try and infer album name from filepath
+    'check:
+        {
+            if tag_album.is_none() {
+                if let Some(dir_album) = file_path
+                        .parent()
+                        .and_then(|x| x.file_name())
+                        .and_then(|x| x.to_str()) {
+                    if let (Some(album), title) = stem_split(&meta, title) {
+                        if album == dir_album {
+                            stem_album = Some(album.to_string());
+                            stem_title = Some(title.to_string());
+                            break 'check;
+                        }
+                    }
+                    if let Some(artist) = meta.album_author.as_ref()
+                            .or(stem_artist.as_ref())
+                            .or(tag_artist.as_ref()) {
+                        if let Some(dir_artist) = file_path
+                                .parent().unwrap().parent()
+                                .and_then(|x| x.file_name())
+                                .and_then(|x| x.to_str()) {
+                            if artist.eq_ignore_ascii_case(dir_artist) {
+                                stem_album = Some(dir_album.to_string());
+                                stem_title = Some(title.to_string());
+                                break 'check;
+                            }
+                        }
+                    }
+                }
+            }
+            stem_title = Some(title.to_string());
         }
     } else {
         log::warn!("failed to get stem for file '{}', skipping", file_path.display());
     }
     // patch the tag title, because Bandcamp actually gets this info wrong
     if let Some(title) = &tag_title {
-        let title_parts = stem_split(&meta, title);
-        if let [artist, title] = title_parts.as_slice() {
+        if let (Some(artist), title) = stem_split(&meta, title) {
             let mut trim_title = false;
             if let Some(expect_artist) = &tag_artist {
                 trim_title = trim_title || expect_artist == artist;
@@ -239,18 +296,17 @@ pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
     Ok(meta)
 }
 
-fn stem_split<'a>(meta : &TrackMeta, stem : &'a str) -> Vec<&'a str> {
-    let mut stem_parts = meta.re_split
-            //.splitn(file_stem, 3) // see above: albums disabled
-            .splitn(stem, 2)
-            .map(|x| x.trim())
-            .collect::<Vec<_>>();
-    if stem_parts.len() == 1 {
-        // probably has no author, but try the fallback just incase!
-        stem_parts = meta.re_split_fallback
-                .splitn(stem_parts[0], 2)
-                .map(|x| x.trim())
-                .collect::<Vec<_>>();
+fn stem_split<'a>(meta : &TrackMeta, stem : &'a str) -> (Option<&'a str>, &'a str) {
+    let mut stem_parts = meta.re_split.splitn(stem, 2).map(|x| x.trim());
+    let fst = stem_parts.next().unwrap();
+    if let Some(snd) = stem_parts.next() {
+        return (Some(fst), snd);
     }
-    stem_parts
+    // probably has no author, but try the fallback just incase!
+    let mut stem_parts = meta.re_split_fallback.splitn(fst, 2).map(|x| x.trim());
+    let fst = stem_parts.next().unwrap();
+    if let Some(snd) = stem_parts.next() {
+        return (Some(fst), snd);
+    }
+    (None, fst)
 }

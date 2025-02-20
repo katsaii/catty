@@ -74,7 +74,7 @@ fn rename_file(
         &sfn::Options { trim_more_punctuation : false, ..sfn::Options::DEFAULT }
     );
     // fix for windows files being case insensitive
-    let unchanged = new_stem.to_lowercase() == file.file_name().and_then(|x| x.to_str()).unwrap().to_lowercase();
+    let unchanged = new_stem.eq_ignore_ascii_case(file.file_name().and_then(|x| x.to_str()).unwrap());
     if unchanged {
         log::info!("file is unchanged, skipping: {}", file.display());
     } else {
