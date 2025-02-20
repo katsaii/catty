@@ -1,4 +1,5 @@
 pub mod meta;
+pub mod infer;
 
 use std::fs;
 use std::io::{stdout, Write};
@@ -20,7 +21,7 @@ pub fn find_config(key : &str) -> Option<String> {
     return Some(toml_value.to_owned());
 }
 
-pub fn glob_foreach_many(patterns : &[String], f : impl Fn(&path::Path) -> Result<()>) -> Result<()> {
+pub fn glob_foreach_many(patterns : &[String], mut f : impl FnMut(&path::Path) -> Result<()>) -> Result<()> {
     if patterns.is_empty() {
         log::info!("no paths supplied, defaulting to all files in the working directory");
         return glob_foreach("*", f);
@@ -30,12 +31,12 @@ pub fn glob_foreach_many(patterns : &[String], f : impl Fn(&path::Path) -> Resul
     for pattern in patterns {
         n += 1;
         log::info!("processing batch [{} / {}]", n, n_count);
-        glob_foreach(pattern, &f)?;
+        glob_foreach(pattern, &mut f)?;
     }
     Ok(())
 }
 
-pub fn glob_foreach(pattern : &str, f : impl Fn(&path::Path) -> Result<()>) -> Result<()> {
+pub fn glob_foreach(pattern : &str, mut f : impl FnMut(&path::Path) -> Result<()>) -> Result<()> {
     let mut has_matches = false;
     for file in glob(pattern)? {
         has_matches = true;
