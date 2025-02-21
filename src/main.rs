@@ -13,6 +13,12 @@ use colog;
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
 struct Cli {
+    /// Set the library path.
+    #[arg(short, long)]
+    library_path : Option<String>,
+    /// Respond (Y)es to all prompts.
+    #[arg(long)]
+    yes : bool,
     #[command(subcommand)]
     command: Commands,
 }
@@ -83,18 +89,18 @@ enum Commands {
 
 fn main() {
     colog::init();
-    if cfg!(feature = "dev_mode") {
-        // update working directory to example/
-        env::set_current_dir("example").expect("cannot update working dir");
-    }
     let cli = Cli::parse();
+    if let Some(lib_path) = cli.library_path.as_ref() {
+        // update working directory to example/
+        env::set_current_dir(lib_path).expect("cannot update working dir");
+    }
     let result = match &cli.command {
         Commands::Add { uris, playlist }
             => cmd_add::run(uris, *playlist),
         Commands::Rename { file_paths, format, no_artist, album, number, no_title, .. }
-            => cmd_rename::run(&file_paths, &format, !*no_artist, *album, *number, !*no_title),
+            => cmd_rename::run(&file_paths, &format, !*no_artist, *album, *number, !*no_title, cli.yes),
         Commands::Sort { file_paths, clean_dirs, clean_files }
-            => cmd_sort::run(&file_paths, *clean_dirs, *clean_files),
+            => cmd_sort::run(&file_paths, *clean_dirs, *clean_files, cli.yes),
     };
     if let Err(msg) = result {
         log::error!("fatal error encountered:\n{}", msg);

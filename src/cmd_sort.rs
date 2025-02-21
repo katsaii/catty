@@ -8,12 +8,13 @@ pub fn run(
     file_paths : &[String],
     _clean_dirs : bool,
     _clean_files : bool,
+    yes : bool,
 ) -> common::Result<()> {
-    sort_files(file_paths)?;
+    sort_files(file_paths, yes)?;
     Ok(())
 }
 
-fn sort_files(file_paths : &[String]) -> common::Result<()> {
+fn sort_files(file_paths : &[String], yes : bool) -> common::Result<()> {
     let mut collection_authors = HashMap::new();
     let mut file_meta_map = HashMap::new();
     let mut db = common::infer::Database::new();
@@ -24,11 +25,17 @@ fn sort_files(file_paths : &[String]) -> common::Result<()> {
             return Ok(());
         };
         // register the authors of a collection
-        if let Some(author) = &file_meta.album_author {
-            let authors = collection_authors
-                    .entry(file_location.id_collection)
-                    .or_insert_with(|| HashSet::new());
-            authors.insert(author.to_string());
+        if let Some(album) = &file_meta.album {
+            if let Some(album_expect) = file.parent().and_then(|x| x.file_name()) {
+                if album_expect.eq_ignore_ascii_case(album) {
+                    if let Some(author) = &file_meta.album_author {
+                        let authors = collection_authors
+                                .entry(file_location.id_collection)
+                                .or_insert_with(|| HashSet::new());
+                        authors.insert(author.to_string());
+                    }
+                }
+            }
         }
         // keep track of file metadata
         file_meta_map.insert(file_location.id, file_meta);
@@ -72,7 +79,7 @@ fn sort_files(file_paths : &[String]) -> common::Result<()> {
         } else {
             log::info!("moving from    '{}'\n         to => '{}'",
                     src_path.display(), dest_path.display());
-            if common::ask_confirm() {
+            if yes || common::ask_confirm() {
                 fs::create_dir_all(dest_path.parent().unwrap())?;
                 fs::rename(src_path, dest_path)?;
                 collection_moved.insert(collection.id);
@@ -107,7 +114,7 @@ fn sort_files(file_paths : &[String]) -> common::Result<()> {
         } else {
             log::info!("moving from    '{}'\n         to => '{}'",
                     src_path.display(), dest_path.display());
-            if common::ask_confirm() {
+            if yes || common::ask_confirm() {
                 fs::create_dir_all(dest_path.parent().unwrap())?;
                 fs::rename(src_path, dest_path)?;
             }
@@ -118,28 +125,4 @@ fn sort_files(file_paths : &[String]) -> common::Result<()> {
 
 fn get_rel_path<'a>(cwd : &path::Path, file : &'a path::Path) -> &'a path::Path {
     file.strip_prefix(cwd).unwrap_or(&file)
-}
-
-fn sort_file(file : &path::Path) -> common::Result<()> {
-    let file_meta = common::meta::parse(file)?;
-    let file_name = file_meta.file_name.unwrap();
-    let mut new_file = file.to_path_buf();
-    new_file.pop();
-    // add author path
-    let author = sanitise_file_name::sanitise(&file_meta.artists[0]);
-    new_file.push(author);
-    // add album (if it exists)
-    if let Some(album) = &file_meta.album {
-        let album = sanitise_file_name::sanitise(album);
-        new_file.push(album);
-    }
-    // confirm rename
-    log::info!("moving from    '{}'\n         to => '{}{}{}'",
-            file.display(), new_file.display(), path::MAIN_SEPARATOR, file_name);
-    if common::ask_confirm() {
-        fs::create_dir_all(new_file.as_path())?;
-        new_file.push(file_name);
-        fs::rename(file, new_file)?;
-    }
-    Ok(())
 }

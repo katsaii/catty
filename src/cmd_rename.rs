@@ -12,9 +12,10 @@ pub fn run(
     album : bool,
     number : bool,
     title : bool,
+    yes : bool,
 ) -> common::Result<()> {
     common::glob_foreach_many(file_paths, |file| {
-        rename_file(file, format, artist, album, number, title)
+        rename_file(file, format, artist, album, number, title, yes)
     })
 }
 
@@ -25,6 +26,7 @@ fn rename_file(
     album : bool,
     number : bool,
     title : bool,
+    yes : bool,
 ) -> common::Result<()> {
     let file_meta = common::meta::parse(file)?;
     log::debug!("{:?}", file_meta);
@@ -81,7 +83,7 @@ fn rename_file(
         // confirm rename
         let new_file = file.with_file_name(new_stem);
         log::info!("renaming from    '{}'\n           to => '{}'", file.display(), new_file.display());
-        if common::ask_confirm() {
+        if yes || common::ask_confirm() {
             fs::rename(file, new_file)?;
         }
     }

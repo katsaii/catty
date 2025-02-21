@@ -3,9 +3,6 @@ name = "catty"
 version = "0.1.0"
 edition = "2021"
 
-[features]
-dev_mode = []
-
 [dependencies]
 audiotags = "0.5.0"
 toml = "0.8.20"
