@@ -1,7 +1,6 @@
 use std::fs;
 use std::path;
 use std::collections::HashMap;
-use crate::common;
 
 use log;
 
@@ -56,7 +55,7 @@ impl Database {
     }
 
     pub fn add_file_canon(&mut self, path : &path::Path) -> Option<&mut File> {
-        let mut collection = path.parent().and_then(|x| self.add_collection_canon(x)).unwrap();
+        let collection = path.parent().and_then(|x| self.add_collection_canon(x)).unwrap();
         collection.has_files = true;
         let collection_id = collection.id;
         let id = self.files.len();
@@ -79,8 +78,7 @@ impl Database {
         }
     }
 
-    pub fn complete(mut self) -> (Vec<Collection>, Vec<File>) {
-        self.collections.retain(|x| x.has_files);
+    pub fn complete(self) -> (Vec<Collection>, Vec<File>) {
         (self.collections, self.files)
     }
 }

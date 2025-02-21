@@ -260,6 +260,7 @@ pub fn parse(file_path : &path::Path) -> common::Result<TrackMeta> {
                             if artist.eq_ignore_ascii_case(dir_artist) {
                                 stem_album = Some(dir_album.to_string());
                                 stem_title = Some(title.to_string());
+                                meta.from_album_author(dir_artist);
                                 break 'check;
                             }
                         }
